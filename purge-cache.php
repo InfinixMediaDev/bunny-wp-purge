@@ -6,6 +6,11 @@ Version: 1.0
 Author: Your Name
 */
 
+function enqueue_purge_cache_bunny_cdn_styles() {
+    wp_enqueue_style('purge-cache-bunny-cdn-styles', plugins_url('assets/style.css', __FILE__));
+}
+add_action('admin_enqueue_scripts', 'enqueue_purge_cache_bunny_cdn_styles');
+
 // Define Bunny CDN API endpoint
 define('BUNNY_API_ENDPOINT', 'https://api.bunny.net/');
 
