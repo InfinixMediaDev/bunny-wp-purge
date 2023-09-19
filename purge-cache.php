@@ -6,13 +6,8 @@ Version: 1.0
 Author: Your Name
 */
 
-function enqueue_purge_cache_bunny_cdn_styles() {
-    wp_enqueue_style('purge-cache-bunny-cdn-styles', plugins_url('assets/style.css', __FILE__));
-}
-add_action('admin_enqueue_scripts', 'enqueue_purge_cache_bunny_cdn_styles');
-
 // Define Bunny CDN API endpoint
-define('BUNNY_API_ENDPOINT', 'https://api.bunny.net/');
+define('BUNNY_API_ENDPOINT', 'https://bunnycdn.com/api');
 
 // Hook into the WordPress admin menu
 add_action('admin_menu', 'purge_cache_bunny_cdn_menu');
@@ -24,19 +19,35 @@ function purge_cache_bunny_cdn_menu() {
 
 // Callback function for the plugin page
 function purge_cache_bunny_cdn_page() {
+    $api_key = get_option('bunny_cdn_api_key');
+    $api_status = check_bunny_cdn_api_connection($api_key);
+
     ?>
     <div class="wrap">
         <h2>Purge Cache Bunny CDN</h2>
-        
+
+        <!-- Display API Connection Status -->
+        <?php if ($api_status['connected']) : ?>
+            <div class="updated"><p><?php echo esc_html($api_status['message']); ?></p></div>
+        <?php else : ?>
+            <div class="error"><p><?php echo esc_html($api_status['message']); ?></p></div>
+        <?php endif; ?>
+
         <!-- Purge Cache Form -->
         <form method="post" action="">
             <label for="zone_id">Zone ID:</label>
             <input type="text" name="zone_id" id="zone_id" required />
             <input type="submit" name="purge_cache" class="button-primary" value="Purge Cache" />
         </form>
-        
+
+        <!-- Check API Connection Button -->
+        <form method="post" action="">
+            <input type="submit" name="check_connection" class="button-secondary" value="Check API Connection" />
+        </form>
+
         <?php
         if (isset($_POST['purge_cache'])) {
+            // Handle cache purge when the button is clicked
             $zone_id = sanitize_text_field($_POST['zone_id']);
             $api_key = get_option('bunny_cdn_api_key');
             
@@ -52,11 +63,15 @@ function purge_cache_bunny_cdn_page() {
                 }
             }
         }
+
+        if (isset($_POST['check_connection'])) {
+            // Check API Connection when the button is clicked
+            $api_status = check_bunny_cdn_api_connection($api_key);
+        }
         ?>
-        
+
         <!-- Display Usage Information -->
         <?php
-        $api_key = get_option('bunny_cdn_api_key');
         if (!empty($api_key)) {
             $bandwidth_usage = get_monthly_bandwidth_usage($api_key);
             echo '<p>' . esc_html($bandwidth_usage) . '</p>';
@@ -85,37 +100,29 @@ function purge_bunny_cdn_cache($api_key, $zone_id) {
     }
 }
 
-// Function to get monthly bandwidth usage
-function get_monthly_bandwidth_usage($api_key) {
-    $url = BUNNY_API_ENDPOINT . '/statistics/bandwidth?apikey=' . $api_key;
+// Function to check the API connection
+function check_bunny_cdn_api_connection($api_key) {
+    $url = BUNNY_API_ENDPOINT . '/ping?apikey=' . $api_key;
 
     // Make the API request
     $response = wp_remote_get($url);
 
-    if (is_wp_error($response)) {
-        return 'Error fetching data from Bunny CDN API.';
-    }
-
-    $body = wp_remote_retrieve_body($response);
-    $data = json_decode($body, true);
-
-    if (is_array($data) && isset($data['value'])) {
-        return 'Monthly Bandwidth Usage: ' . $data['value'] . ' GB';
+    if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        return array(
+            'connected' => true,
+            'message' => 'API Connection Successful.'
+        );
     } else {
-        return 'Unable to retrieve bandwidth usage data.';
+        return array(
+            'connected' => false,
+            'message' => 'API Connection Failed. Please check your API key and try again.'
+        );
     }
 }
 
-// Add "Purge Cache" button to admin bar
-function add_purge_cache_button_to_admin_bar() {
-    if (current_user_can('manage_options')) {
-        global $wp_admin_bar;
-        $wp_admin_bar->add_node(array(
-            'id' => 'purge-cache-bunny-cdn',
-            'title' => 'Purge Cache',
-            'href' => admin_url('admin.php?page=purge-cache-bunny-cdn'),
-        ));
-    }
+// Enqueue the CSS file
+function enqueue_purge_cache_bunny_cdn_styles() {
+    wp_enqueue_style('purge-cache-bunny-cdn-styles', plugins_url('assets/style.css', __FILE__));
 }
-add_action('admin_bar_menu', 'add_purge_cache_button_to_admin_bar', 999);
+add_action('admin_enqueue_scripts', 'enqueue_purge_cache_bunny_cdn_styles');
 ?>
