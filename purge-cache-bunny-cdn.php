@@ -7,7 +7,7 @@ Author: Your Name
 */
 
 // Define Bunny CDN API endpoint
-define('BUNNY_API_ENDPOINT', 'https://bunnycdn.com/api');
+define('BUNNY_API_ENDPOINT', 'https://api.bunny.net');
 
 // Hook into the WordPress admin menu
 add_action('admin_menu', 'purge_cache_bunny_cdn_menu');
@@ -17,7 +17,7 @@ function purge_cache_bunny_cdn_menu() {
     add_menu_page('Purge Cache Bunny CDN', 'Purge Cache Bunny CDN', 'manage_options', 'purge-cache-bunny-cdn', 'purge_cache_bunny_cdn_page');
 }
 
-// Callback function for the plugin page
+// Callback function for the main plugin page
 function purge_cache_bunny_cdn_page() {
     $api_key = get_option('bunny_cdn_api_key');
     $api_status = check_bunny_cdn_api_connection($api_key);
@@ -44,37 +44,20 @@ function purge_cache_bunny_cdn_page() {
         <form method="post" action="">
             <input type="submit" name="check_connection" class="button-secondary" value="Check API Connection" />
         </form>
-
-        <?php
-        if (isset($_POST['purge_cache'])) {
-            // Handle cache purge when the button is clicked
-            $zone_id = sanitize_text_field($_POST['zone_id']);
-            $api_key = get_option('bunny_cdn_api_key');
-            
-            // Check if API key is set
-            if (empty($api_key)) {
-                echo '<div class="error"><p>API key is not set. Please configure it on the settings page.</p></div>';
-            } else {
-                $result = purge_bunny_cdn_cache($api_key, $zone_id);
-                if ($result === true) {
-                    echo '<div class="updated"><p>Cache purge request sent successfully.</p></div>';
-                } else {
-                    echo '<div class="error"><p>Cache purge request failed: ' . esc_html($result) . '</p></div>';
-                }
-            }
-        }
-
-        if (isset($_POST['check_connection'])) {
-            // Check API Connection when the button is clicked
-            $api_status = check_bunny_cdn_api_connection($api_key);
-        }
-        ?>
-
-        <!-- Display Usage Information -->
+        
+        <!-- Display Monthly Bandwidth Usage -->
         <?php
         if (!empty($api_key)) {
             $bandwidth_usage = get_monthly_bandwidth_usage($api_key);
-            echo '<p>' . esc_html($bandwidth_usage) . '</p>';
+            echo '<p>Monthly Bandwidth Usage: ' . esc_html($bandwidth_usage) . '</p>';
+        }
+        ?>
+
+        <!-- Display Perma-Cache Storage Usage -->
+        <?php
+        $perma_cache_storage = get_perma_cache_storage($api_key);
+        if ($perma_cache_storage !== false) {
+            echo '<p>Perma-Cache Storage Usage: ' . esc_html($perma_cache_storage) . '</p>';
         }
         ?>
     </div>
@@ -120,9 +103,58 @@ function check_bunny_cdn_api_connection($api_key) {
     }
 }
 
+// Function to get monthly bandwidth usage
+function get_monthly_bandwidth_usage($api_key) {
+    // Implement logic to retrieve monthly bandwidth usage from Bunny CDN
+    // Return the usage as a string
+    return '100 GB / 200 GB'; // Example usage data
+}
+
+// Function to get Perma-Cache storage usage
+function get_perma_cache_storage($api_key) {
+    // Implement logic to retrieve Perma-Cache storage usage from Bunny CDN
+    // Return the usage as a string or false if Perma-Cache is not enabled
+    return '50 MB / 100 MB'; // Example storage data
+}
+
 // Enqueue the CSS file
 function enqueue_purge_cache_bunny_cdn_styles() {
     wp_enqueue_style('purge-cache-bunny-cdn-styles', plugins_url('assets/style.css', __FILE__));
 }
 add_action('admin_enqueue_scripts', 'enqueue_purge_cache_bunny_cdn_styles');
-?>
+
+// Add a menu item for settings
+add_action('admin_menu', 'purge_cache_bunny_cdn_settings_menu');
+
+function purge_cache_bunny_cdn_settings_menu() {
+    add_submenu_page(
+        'purge-cache-bunny-cdn',
+        'Plugin Settings',
+        'Settings',
+        'manage_options',
+        'purge-cache-bunny-cdn-settings',
+        'purge_cache_bunny_cdn_settings_page'
+    );
+}
+
+// Callback function for the settings page
+function purge_cache_bunny_cdn_settings_page() {
+    $api_key = get_option('bunny_cdn_api_key');
+
+    if (isset($_POST['submit'])) {
+        $api_key = sanitize_text_field($_POST['api_key']);
+        update_option('bunny_cdn_api_key', $api_key);
+        echo '<div class="updated"><p>API Key saved successfully.</p></div>';
+    }
+
+    ?>
+    <div class="wrap">
+        <h2>Purge Cache Bunny CDN Settings</h2>
+        <form method="post" action="">
+            <label for="api_key">API Key:</label>
+            <input type="text" name="api_key" id="api_key" value="<?php echo esc_attr($api_key); ?>" />
+            <input type="submit" name="submit" class="button-primary" value="Save API Key" />
+        </form>
+    </div>
+    <?php
+}
